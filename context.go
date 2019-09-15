@@ -42,6 +42,7 @@ type Context struct {
 
 	userAgent    string
 	tileProvider *TileProvider
+	tileFetcher  TileFetcher
 	cache        TileCache
 
 	overrideAttribution *string
@@ -59,12 +60,18 @@ func NewContext() *Context {
 	t.userAgent = ""
 	t.tileProvider = NewTileProviderOpenStreetMaps()
 	t.cache = NewTileCacheFromUserCache(t.tileProvider.Name, 0777)
+	t.tileFetcher = NewTileFetcher(t.tileProvider, t.cache)
 	return t
 }
 
 // SetTileProvider sets the TileProvider to be used
 func (m *Context) SetTileProvider(t *TileProvider) {
 	m.tileProvider = t
+}
+
+// SetTileProvider sets the TileProvider to be used
+func (m *Context) SetTileFetcher(t TileFetcher) {
+	m.tileFetcher = t
 }
 
 // SetCache takes a nil argument to disable caching
@@ -366,9 +373,19 @@ func (m *Context) Render() (image.Image, error) {
 	}
 
 	// fetch and draw tiles to img
-	layers := []*TileProvider{m.tileProvider}
+	layers := []TileFetcher{m.tileFetcher}
+	if httpFetcher, ok := m.tileFetcher.(HttpTileFetcher); ok && m.userAgent != "" {
+		httpFetcher.SetUserAgent(m.userAgent)
+	}
+
 	if m.overlays != nil {
-		layers = append(layers, m.overlays...)
+		for _, overlay := range m.overlays {
+			f := NewTileFetcher(overlay, m.cache)
+			if httpFetcher, ok := f.(HttpTileFetcher); ok && m.userAgent != "" {
+				httpFetcher.SetUserAgent(m.userAgent)
+			}
+			layers = append(layers, f)
+		}
 	}
 
 	for _, layer := range layers {
@@ -438,9 +455,19 @@ func (m *Context) RenderWithBounds() (image.Image, s2.Rect, error) {
 	}
 
 	// fetch and draw tiles to img
-	layers := []*TileProvider{m.tileProvider}
+	layers := []TileFetcher{m.tileFetcher}
+	if httpFetcher, ok := m.tileFetcher.(HttpTileFetcher); ok && m.userAgent != "" {
+		httpFetcher.SetUserAgent(m.userAgent)
+	}
+
 	if m.overlays != nil {
-		layers = append(layers, m.overlays...)
+		for _, overlay := range m.overlays {
+			f := NewTileFetcher(overlay, m.cache)
+			if httpFetcher, ok := f.(HttpTileFetcher); ok && m.userAgent != "" {
+				httpFetcher.SetUserAgent(m.userAgent)
+			}
+			layers = append(layers, f)
+		}
 	}
 
 	for _, layer := range layers {
@@ -478,12 +505,7 @@ func (m *Context) RenderWithBounds() (image.Image, s2.Rect, error) {
 	return img, trans.Rect(), nil
 }
 
-func (m *Context) renderLayer(gc *gg.Context, zoom int, trans *transformer, tileSize int, provider *TileProvider) error {
-	t := NewTileFetcher(provider, m.cache)
-	if m.userAgent != "" {
-		t.SetUserAgent(m.userAgent)
-	}
-
+func (m *Context) renderLayer(gc *gg.Context, zoom int, trans *transformer, tileSize int, f TileFetcher) error {
 	tiles := (1 << uint(zoom))
 	for xx := 0; xx < trans.tCountX; xx++ {
 		x := trans.tOriginX + xx
@@ -497,7 +519,7 @@ func (m *Context) renderLayer(gc *gg.Context, zoom int, trans *transformer, tile
 			if y < 0 || y >= tiles {
 				log.Printf("Skipping out of bounds tile %d/%d", x, y)
 			} else {
-				if tileImg, err := t.Fetch(zoom, x, y); err == nil {
+				if tileImg, err := f.Fetch(zoom, x, y); err == nil {
 					gc.DrawImage(tileImg, xx*tileSize, yy*tileSize)
 				} else {
 					log.Printf("Error downloading tile file: %s", err)

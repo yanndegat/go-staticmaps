@@ -20,27 +20,32 @@ import (
 )
 
 // TileFetcher downloads map tile images from a TileProvider
-type TileFetcher struct {
+type TileFetcher interface {
+	Fetch(zoom, x, y int) (image.Image, error)
+}
+
+type HttpTileFetcher struct {
 	tileProvider *TileProvider
 	cache        TileCache
 	userAgent    string
 }
 
 // NewTileFetcher creates a new Tilefetcher struct
-func NewTileFetcher(tileProvider *TileProvider, cache TileCache) *TileFetcher {
-	t := new(TileFetcher)
-	t.tileProvider = tileProvider
-	t.cache = cache
-	t.userAgent = "Mozilla/5.0+(compatible; go-staticmaps/0.1; https://github.com/flopp/go-staticmaps)"
+func NewTileFetcher(tileProvider *TileProvider, cache TileCache) TileFetcher {
+	t := &HttpTileFetcher{
+		tileProvider: tileProvider,
+		cache:        cache,
+		userAgent:    "Mozilla/5.0+(compatible; go-staticmaps/0.1; https://github.com/flopp/go-staticmaps)",
+	}
 	return t
 }
 
 // SetUserAgent sets the HTTP user agent string used when downloading map tiles
-func (t *TileFetcher) SetUserAgent(a string) {
+func (t *HttpTileFetcher) SetUserAgent(a string) {
 	t.userAgent = a
 }
 
-func (t *TileFetcher) url(zoom, x, y int) string {
+func (t *HttpTileFetcher) url(zoom, x, y int) string {
 	shard := ""
 	ss := len(t.tileProvider.Shards)
 	if len(t.tileProvider.Shards) > 0 {
@@ -54,7 +59,7 @@ func cacheFileName(cache TileCache, zoom int, x, y int) string {
 }
 
 // Fetch download (or retrieves from the cache) a tile image for the specified zoom level and tile coordinates
-func (t *TileFetcher) Fetch(zoom, x, y int) (image.Image, error) {
+func (t HttpTileFetcher) Fetch(zoom, x, y int) (image.Image, error) {
 	if t.cache != nil {
 		fileName := cacheFileName(t.cache, zoom, x, y)
 		cachedImg, err := t.loadCache(fileName)
@@ -84,7 +89,7 @@ func (t *TileFetcher) Fetch(zoom, x, y int) (image.Image, error) {
 	return img, nil
 }
 
-func (t *TileFetcher) download(url string) ([]byte, error) {
+func (t *HttpTileFetcher) download(url string) ([]byte, error) {
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Set("User-Agent", t.userAgent)
 
@@ -107,7 +112,7 @@ func (t *TileFetcher) download(url string) ([]byte, error) {
 	return contents, nil
 }
 
-func (t *TileFetcher) loadCache(fileName string) (image.Image, error) {
+func (t *HttpTileFetcher) loadCache(fileName string) (image.Image, error) {
 	file, err := os.Open(fileName)
 	if err != nil {
 		return nil, err
@@ -122,7 +127,7 @@ func (t *TileFetcher) loadCache(fileName string) (image.Image, error) {
 	return img, nil
 }
 
-func (t *TileFetcher) createCacheDir(path string) error {
+func (t *HttpTileFetcher) createCacheDir(path string) error {
 	src, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -137,7 +142,7 @@ func (t *TileFetcher) createCacheDir(path string) error {
 	return fmt.Errorf("File exists but is not a directory: %s", path)
 }
 
-func (t *TileFetcher) storeCache(fileName string, data []byte) error {
+func (t *HttpTileFetcher) storeCache(fileName string, data []byte) error {
 	dir, _ := filepath.Split(fileName)
 
 	if err := t.createCacheDir(dir); err != nil {
