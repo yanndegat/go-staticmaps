@@ -69,6 +69,7 @@ func (t HttpTileFetcher) Fetch(zoom, x, y int) (image.Image, error) {
 	}
 
 	url := t.url(zoom, x, y)
+	log.Printf("Download from url %s", url)
 	data, err := t.download(url)
 	if err != nil {
 		return nil, err

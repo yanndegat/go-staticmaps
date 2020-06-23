@@ -61,7 +61,7 @@ func NewTileProviderSelfHosted() *TileProvider {
 	t := new(TileProvider)
 	t.Name = "selfhosted"
 	t.TileSize = 256
-	t.URLPattern = "http://localhost:8000/services/belleile/tiles/%[2]d/%[3]d/%[4]d.png"
+	t.URLPattern = "http://localhost:8000/services/offline/tiles/%[2]d/%[3]d/%[4]d.png"
 	t.Shards = []string{}
 	return t
 }

@@ -13,17 +13,20 @@ import (
 	"strings"
 
 	"github.com/flopp/go-coordsparser"
-	"github.com/flopp/go-staticmaps"
 	"github.com/fogleman/gg"
 	"github.com/golang/geo/s2"
 	"github.com/jessevdk/go-flags"
+	sm "github.com/yanndegat/go-staticmaps"
 )
 
 func handleTypeOption(ctx *sm.Context, parameter string) {
 	tileProviders := sm.GetTileProviders()
 	tp := tileProviders[parameter]
 	if tp != nil {
+		cache := sm.NewTileCacheFromUserCache(tp.Name, 0777)
 		ctx.SetTileProvider(tp)
+		ctx.SetCache(cache)
+		ctx.SetTileFetcher(sm.NewTileFetcher(tp, cache))
 		return
 	}
 
