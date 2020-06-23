@@ -5,7 +5,10 @@
 
 package sm
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
 // TileProvider encapsulates all infos about a map tile provider service (name, url scheme, attribution, etc.)
 type TileProvider struct {
@@ -57,11 +60,23 @@ func NewTileProviderThunderforestTransport() *TileProvider {
 }
 
 // NewTileProviderStamenToner creates a TileProvider struct for stamens' 'toner' tile service
-func NewTileProviderSelfHosted() *TileProvider {
+func NewTileProviderMbtileserver() *TileProvider {
 	t := new(TileProvider)
-	t.Name = "selfhosted"
+
+	host := os.Getenv("MBTILESERVER_HOST")
+	if host == "" {
+		host = "localhost:8000"
+	}
+
+	tileset := os.Getenv("MBTILESERVER_TILESET")
+	if tileset == "" {
+		tileset = "offline"
+	}
+
+	t.Name = "mbtileserver"
 	t.TileSize = 256
-	t.URLPattern = "http://localhost:8000/services/offline/tiles/%[2]d/%[3]d/%[4]d.png"
+	t.URLPattern = fmt.Sprintf("http://%s/services/%s/tiles/%%[2]d/%%[3]d/%%[4]d.png", host, tileset)
+
 	t.Shards = []string{}
 	return t
 }
@@ -146,7 +161,7 @@ func GetTileProviders() map[string]*TileProvider {
 	m := make(map[string]*TileProvider)
 
 	list := []*TileProvider{
-		NewTileProviderSelfHosted(),
+		NewTileProviderMbtileserver(),
 		NewTileProviderOpenStreetMaps(),
 		NewTileProviderOpenCycleMap(),
 		NewTileProviderThunderforestLandscape(),
