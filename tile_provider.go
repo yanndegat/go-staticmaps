@@ -57,6 +57,16 @@ func NewTileProviderThunderforestTransport() *TileProvider {
 }
 
 // NewTileProviderStamenToner creates a TileProvider struct for stamens' 'toner' tile service
+func NewTileProviderSelfHosted() *TileProvider {
+	t := new(TileProvider)
+	t.Name = "selfhosted"
+	t.TileSize = 256
+	t.URLPattern = "http://localhost:8000/services/belleile/tiles/%[2]d/%[3]d/%[4]d.png"
+	t.Shards = []string{}
+	return t
+}
+
+// NewTileProviderStamenToner creates a TileProvider struct for stamens' 'toner' tile service
 func NewTileProviderStamenToner() *TileProvider {
 	t := new(TileProvider)
 	t.Name = "stamen-toner"
@@ -136,6 +146,7 @@ func GetTileProviders() map[string]*TileProvider {
 	m := make(map[string]*TileProvider)
 
 	list := []*TileProvider{
+		NewTileProviderSelfHosted(),
 		NewTileProviderOpenStreetMaps(),
 		NewTileProviderOpenCycleMap(),
 		NewTileProviderThunderforestLandscape(),
